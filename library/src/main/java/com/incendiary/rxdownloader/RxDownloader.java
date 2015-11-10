@@ -31,7 +31,7 @@ public class RxDownloader {
 		return mRxDownloader;
 	}
 
-	public RxDownloader(Context context) {
+	private RxDownloader(Context context) {
 		mContext = context;
 		DownloadStatusReceiver downloadStatusReceiver = new DownloadStatusReceiver();
 		IntentFilter intentFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
