@@ -15,3 +15,5 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+-keepnames class com.esafirm.**
+-keep class com.esafirm.rxdownloadmanager.** { *; }

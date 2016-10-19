@@ -1,4 +1,4 @@
-package com.incendiary.rxdownloadmanager;
+package com.esafirm.rxdownloadmanager;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

@@ -1,5 +1,5 @@
 <manifest
-    package="com.incendiary.rxdownloadmanager"
+    package="com.esafirm.rxdownloadmanager"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -13,7 +13,7 @@
         android:theme="@style/AppTheme">
 
         <activity
-            android:name=".SampleAct"
+            android:name="com.esafirm.rxdownloadmanager.SampleAct"
             android:label="RxDownloader Sample App">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
