@@ -1,6 +1,8 @@
 ## RxDownloadManager
 An Rx wrapper for Download Manager in Android
 
+![](https://raw.githubusercontent.com/esafirm/RxDownloader/master/art/sample.gif)
+
 ### Usage
 ```java
 String url = "https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG";
