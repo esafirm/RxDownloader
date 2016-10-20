@@ -21,7 +21,6 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
     /* Rx */
-    compile 'io.reactivex:rxandroid:1.2.1'
     compile 'io.reactivex:rxjava:1.2.1'
     compile 'com.artemzin.rxjava:proguard-rules:1.2.1.0'
 }

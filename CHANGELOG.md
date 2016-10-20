@@ -1,4 +1,4 @@
-Version 1.0.0
+#### Version 1.0.0
 
 * Exclude support library, using internal LongSparseArray instead
 * Include proguard rules
@@ -8,3 +8,8 @@ Version 1.0.0
 * Change minSdkVersion to 14 and compileSdkVersion to 24
 * Change buildTools to 24.0.2
 * Change gradle wrapper to 2.14.1 and gradle plugin to 2.2.1
+
+#### Version 1.0.1
+
+* Remove RxAndroid dependency from library
+

@@ -30,7 +30,7 @@ allprojects {
 
 ```groovy
 dependencies {
-	  compile 'com.github.esafirm:RxDownloader:1.0.0'
+	  compile 'com.github.esafirm:RxDownloader:1.0.1'
 }
 ```
 
