@@ -85,6 +85,7 @@ public class RxDownloader {
             Cursor cursor = mDownloadManager.query(query);
 
             if (!cursor.moveToFirst()) {
+                cursor.close();
                 mDownloadManager.remove(id);
                 publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happened"));
                 mSubjectMap.remove(id);
@@ -93,6 +94,7 @@ public class RxDownloader {
 
             int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
             if (DownloadManager.STATUS_SUCCESSFUL != cursor.getInt(statusIndex)) {
+                cursor.close();
                 mDownloadManager.remove(id);
                 publishSubject.onError(new IllegalStateException("Download Failed"));
                 mSubjectMap.remove(id);
@@ -101,6 +103,7 @@ public class RxDownloader {
 
             int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
             String downloadedPackageUriString = cursor.getString(uriIndex);
+            cursor.close();
 
             publishSubject.onNext(downloadedPackageUriString);
             publishSubject.onCompleted();

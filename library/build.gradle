@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 24
-    buildToolsVersion "24.0.2"
+    buildToolsVersion '25.0.2'
 
     defaultConfig {
         minSdkVersion 14
@@ -21,6 +21,6 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
     /* Rx */
-    compile 'io.reactivex:rxjava:1.2.1'
-    compile 'com.artemzin.rxjava:proguard-rules:1.2.1.0'
+    compile 'io.reactivex:rxjava:1.2.9'
+    compile 'com.artemzin.rxjava:proguard-rules:1.2.9.0'
 }
