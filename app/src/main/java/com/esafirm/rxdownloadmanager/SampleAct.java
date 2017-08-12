@@ -19,6 +19,8 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.esafirm.rxdownloader.RxDownloader;
 
+import java.io.File;
+
 import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 
@@ -57,6 +59,8 @@ public class SampleAct extends FragmentActivity {
 
                             @Override
                             public void onNext(String s) {
+                                File file = new File(s);
+                                Toast.makeText(getApplication(), "File length:" + file.length(), Toast.LENGTH_SHORT).show();
                                 Toast.makeText(getApplication(), "Downloaded to " + s, Toast.LENGTH_SHORT).show();
 
                                 ImageView imageView = new ImageView(SampleAct.this);
