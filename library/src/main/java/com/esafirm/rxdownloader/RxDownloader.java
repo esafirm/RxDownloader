@@ -33,21 +33,28 @@ public class RxDownloader {
         context.registerReceiver(downloadStatusReceiver, intentFilter);
     }
 
-    public Observable<String> download(@NonNull String url, @NonNull String filename) {
-        return download(url, filename, DEFAULT_MIME_TYPE);
+    public Observable<String> downloadExternalPublicDir(@NonNull String url, @NonNull String filename) {
+        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE);
     }
 
-    public Observable<String> download(@NonNull String url,
-                                       @NonNull String filename,
-                                       @NonNull String mimeType) {
-        return download(getDefaultRequest(url, filename, null, mimeType));
+    public Observable<String> downloadExternalPublicDir(@NonNull String url,
+                                                        @NonNull String filename,
+                                                        @NonNull String mimeType) {
+        return download(getDefaultRequest(url, filename, null, mimeType, true));
     }
 
-    public Observable<String> download(@NonNull String url,
+    public Observable<String> downloadExternalPublicDir(@NonNull String url,
+                                                        @NonNull String filename,
+                                                        @NonNull String destinationPath,
+                                                        @NonNull String mimeType) {
+        return download(getDefaultRequest(url, filename, destinationPath, mimeType, true));
+    }
+
+    public Observable<String> downloadExternalFilesDir(@NonNull String url,
                                        @NonNull String filename,
                                        @NonNull String destinationPath,
                                        @NonNull String mimeType) {
-        return download(getDefaultRequest(url, filename, destinationPath, mimeType));
+        return download(getDefaultRequest(url, filename, destinationPath, mimeType, false));
     }
 
     @Nullable
@@ -67,13 +74,18 @@ public class RxDownloader {
     private DownloadManager.Request getDefaultRequest(@NonNull String url,
                                                       @NonNull String filename,
                                                       @Nullable String destinationPath,
-                                                      @NonNull String mimeType) {
+                                                      @NonNull String mimeType,
+                                                      boolean inPublicDir) {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setDescription(filename);
         request.setMimeType(mimeType);
         destinationPath = destinationPath == null ?
                 Environment.DIRECTORY_DOWNLOADS : destinationPath;
-        request.setDestinationInExternalPublicDir(destinationPath, filename);
+        if (inPublicDir) {
+            request.setDestinationInExternalPublicDir(destinationPath, filename);
+        } else {
+            request.setDestinationInExternalFilesDir(context, destinationPath, filename);
+        }
         request.setNotificationVisibility(
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         return request;

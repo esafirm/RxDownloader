@@ -43,7 +43,7 @@ public class SampleAct extends FragmentActivity {
 
                 RxDownloader rxDownloader = new RxDownloader(SampleAct.this);
                 rxDownloader
-                        .download("https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
+                        .downloadExternalPublicDir("https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
                                 "nyancat photo", "image/jpg")
                         .subscribeOn(AndroidSchedulers.mainThread())
                         .subscribe(new Observer<String>() {
