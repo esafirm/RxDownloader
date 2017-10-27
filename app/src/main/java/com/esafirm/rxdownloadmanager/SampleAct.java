@@ -19,8 +19,9 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.esafirm.rxdownloader.RxDownloader;
 
-import rx.Subscriber;
-import rx.android.schedulers.AndroidSchedulers;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 
 /**
  * Created by esa on 11/11/15, with awesomeness
@@ -40,14 +41,29 @@ public class SampleAct extends FragmentActivity {
             public void onClick(View v) {
                 Toast.makeText(getApplication(), "Look at the notification!", Toast.LENGTH_SHORT).show();
 
-                RxDownloader.getInstance(SampleAct.this)
+                RxDownloader rxDownloader = new RxDownloader(SampleAct.this);
+                rxDownloader
                         .download("https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
                                 "nyancat photo", "image/jpg")
                         .subscribeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Subscriber<String>() {
+                        .subscribe(new Observer<String>() {
                             @Override
-                            public void onCompleted() {
-                                Log.d("Sample", "Is in main thread? " + (Looper.getMainLooper() == Looper.myLooper()));
+                            public void onSubscribe(Disposable d) {
+
+                            }
+
+                            @Override
+                            public void onNext(String filePath) {
+                                Toast.makeText(getApplication(), "Downloaded to " + filePath, Toast.LENGTH_SHORT).show();
+
+                                ImageView imageView = new ImageView(SampleAct.this);
+                                imageView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.WRAP_CONTENT));
+                                ((ViewGroup) findViewById(R.id.container)).addView(imageView);
+
+                                Glide.with(SampleAct.this)
+                                        .load(filePath)
+                                        .into(imageView);
                             }
 
                             @Override
@@ -56,17 +72,8 @@ public class SampleAct extends FragmentActivity {
                             }
 
                             @Override
-                            public void onNext(String s) {
-                                Toast.makeText(getApplication(), "Downloaded to " + s, Toast.LENGTH_SHORT).show();
-
-                                ImageView imageView = new ImageView(SampleAct.this);
-                                imageView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.WRAP_CONTENT));
-                                ((ViewGroup) findViewById(R.id.container)).addView(imageView);
-
-                                Glide.with(SampleAct.this)
-                                        .load(s)
-                                        .into(imageView);
+                            public void onComplete() {
+                                Log.d("Sample", "Is in main thread? " + (Looper.getMainLooper() == Looper.myLooper()));
                             }
                         });
             }
