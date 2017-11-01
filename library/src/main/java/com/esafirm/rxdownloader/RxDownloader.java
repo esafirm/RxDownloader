@@ -11,6 +11,8 @@ import android.os.Environment;
 
 import com.esafirm.rxdownloader.utils.LongSparseArray;
 
+import java.io.File;
+
 import io.reactivex.Observable;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.annotations.Nullable;
@@ -82,13 +84,32 @@ public class RxDownloader {
         destinationPath = destinationPath == null ?
                 Environment.DIRECTORY_DOWNLOADS : destinationPath;
         if (inPublicDir) {
+            File destinationFolder = Environment.getExternalStoragePublicDirectory(destinationPath);
+            createFolderIfNeeded(destinationFolder);
+            removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalPublicDir(destinationPath, filename);
         } else {
+            File destinationFolder = new File(context.getFilesDir(), destinationPath);
+            createFolderIfNeeded(destinationFolder);
+            removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalFilesDir(context, destinationPath, filename);
         }
         request.setNotificationVisibility(
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         return request;
+    }
+
+    private void createFolderIfNeeded(@NonNull File folder) {
+        if (!folder.exists() && !folder.mkdirs()) {
+            throw new RuntimeException("Can't create directory");
+        }
+    }
+
+    private void removeDuplicateFileIfExist(@NonNull File folder, @NonNull String fileName) {
+        File file = new File(folder, fileName);
+        if (file.exists() && !file.delete()) {
+            throw new RuntimeException("Can't delete file");
+        }
     }
 
     private class DownloadStatusReceiver extends BroadcastReceiver {
