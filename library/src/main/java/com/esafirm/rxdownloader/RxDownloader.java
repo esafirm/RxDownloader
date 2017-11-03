@@ -105,7 +105,7 @@ public class RxDownloader {
         }
         request.setNotificationVisibility(showNotification ?
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED :
-                DownloadManager.Request.VISIBILITY_HIDDEN);
+                DownloadManager.Request.VISIBILITY_VISIBLE);
         return request;
     }
 
