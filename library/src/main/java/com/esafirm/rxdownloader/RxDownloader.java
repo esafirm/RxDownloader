@@ -35,28 +35,36 @@ public class RxDownloader {
         context.registerReceiver(downloadStatusReceiver, intentFilter);
     }
 
-    public Observable<String> downloadExternalPublicDir(@NonNull String url, @NonNull String filename) {
-        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE);
+    public Observable<String> downloadExternalPublicDir(@NonNull String url,
+                                                        @NonNull String filename,
+                                                        boolean showNotification) {
+        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE, showNotification);
     }
 
     public Observable<String> downloadExternalPublicDir(@NonNull String url,
                                                         @NonNull String filename,
-                                                        @NonNull String mimeType) {
-        return download(getDefaultRequest(url, filename, null, mimeType, true));
+                                                        @NonNull String mimeType,
+                                                        boolean showNotification) {
+        return download(getDefaultRequest(url, filename, null,
+                mimeType, true, showNotification));
     }
 
     public Observable<String> downloadExternalPublicDir(@NonNull String url,
                                                         @NonNull String filename,
                                                         @NonNull String destinationPath,
-                                                        @NonNull String mimeType) {
-        return download(getDefaultRequest(url, filename, destinationPath, mimeType, true));
+                                                        @NonNull String mimeType,
+                                                        boolean showNotification) {
+        return download(getDefaultRequest(url, filename, destinationPath,
+                mimeType, true, showNotification));
     }
 
     public Observable<String> downloadExternalFilesDir(@NonNull String url,
-                                       @NonNull String filename,
-                                       @NonNull String destinationPath,
-                                       @NonNull String mimeType) {
-        return download(getDefaultRequest(url, filename, destinationPath, mimeType, false));
+                                                       @NonNull String filename,
+                                                       @NonNull String destinationPath,
+                                                       @NonNull String mimeType,
+                                                       boolean showNotification) {
+        return download(getDefaultRequest(url, filename, destinationPath,
+                mimeType, false, showNotification));
     }
 
     @Nullable
@@ -77,7 +85,8 @@ public class RxDownloader {
                                                       @NonNull String filename,
                                                       @Nullable String destinationPath,
                                                       @NonNull String mimeType,
-                                                      boolean inPublicDir) {
+                                                      boolean inPublicDir,
+                                                      boolean showNotification) {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setDescription(filename);
         request.setMimeType(mimeType);
@@ -94,8 +103,9 @@ public class RxDownloader {
             removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalFilesDir(context, destinationPath, filename);
         }
-        request.setNotificationVisibility(
-                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setNotificationVisibility(showNotification ?
+                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED :
+                DownloadManager.Request.VISIBILITY_HIDDEN);
         return request;
     }
 
