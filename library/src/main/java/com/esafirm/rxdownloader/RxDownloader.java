@@ -37,34 +37,34 @@ public class RxDownloader {
 
     public Observable<String> downloadExternalPublicDir(@NonNull String url,
                                                         @NonNull String filename,
-                                                        boolean showNotification) {
-        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE, showNotification);
+                                                        boolean showCompletedNotification) {
+        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
     }
 
     public Observable<String> downloadExternalPublicDir(@NonNull String url,
                                                         @NonNull String filename,
                                                         @NonNull String mimeType,
-                                                        boolean showNotification) {
+                                                        boolean showCompletedNotification) {
         return download(getDefaultRequest(url, filename, null,
-                mimeType, true, showNotification));
+                mimeType, true, showCompletedNotification));
     }
 
     public Observable<String> downloadExternalPublicDir(@NonNull String url,
                                                         @NonNull String filename,
                                                         @NonNull String destinationPath,
                                                         @NonNull String mimeType,
-                                                        boolean showNotification) {
+                                                        boolean showCompletedNotification) {
         return download(getDefaultRequest(url, filename, destinationPath,
-                mimeType, true, showNotification));
+                mimeType, true, showCompletedNotification));
     }
 
     public Observable<String> downloadExternalFilesDir(@NonNull String url,
                                                        @NonNull String filename,
                                                        @NonNull String destinationPath,
                                                        @NonNull String mimeType,
-                                                       boolean showNotification) {
+                                                       boolean showCompletedNotification) {
         return download(getDefaultRequest(url, filename, destinationPath,
-                mimeType, false, showNotification));
+                mimeType, false, showCompletedNotification));
     }
 
     @Nullable
@@ -86,7 +86,7 @@ public class RxDownloader {
                                                       @Nullable String destinationPath,
                                                       @NonNull String mimeType,
                                                       boolean inPublicDir,
-                                                      boolean showNotification) {
+                                                      boolean showCompletedNotification) {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setDescription(filename);
         request.setMimeType(mimeType);
@@ -103,7 +103,7 @@ public class RxDownloader {
             removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalFilesDir(context, destinationPath, filename);
         }
-        request.setNotificationVisibility(showNotification ?
+        request.setNotificationVisibility(showCompletedNotification ?
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED :
                 DownloadManager.Request.VISIBILITY_VISIBLE);
         return request;
