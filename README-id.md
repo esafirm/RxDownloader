@@ -1,10 +1,9 @@
-## Rx2DownloadManager
-This is fork of https://github.com/esafirm/RxDownloader repository with migration to RxJava2
-An Rx wrapper for Download Manager in Android
+## RxDownloadManager
+Sebuah Pembungkus Rx untuk Download Manager di Android
 
 ![](https://raw.githubusercontent.com/esafirm/RxDownloader/master/art/sample.gif)
 
-### Usage
+### Penggunaan
 ```java
 String url = "https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG";
 RxDownloader.getInstance(SampleAct.this)
@@ -16,7 +15,7 @@ RxDownloader.getInstance(SampleAct.this)
              });
 ```
 
-You can also look at the `sample` for complete usage
+Anda juga dapat melihat `sample` untuk penggunaan lengkap
 
 ### Gradle
 
@@ -31,8 +30,6 @@ allprojects {
 
 ```groovy
 dependencies {
-	  compile 'com.github.vladislavnikolaev:rxdownloader:1.0.8'
+	  compile 'com.github.esafirm:RxDownloader:1.0.1'
 }
 ```
-
-
