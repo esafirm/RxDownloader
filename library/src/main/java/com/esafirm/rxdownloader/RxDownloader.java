@@ -27,6 +27,7 @@ public class RxDownloader {
 
     private Context context;
     private LongSparseArray<PublishSubject<String>> subjectMap = new LongSparseArray<>();
+    private DownloadManager downloadManager;
 
     public RxDownloader(@NonNull Context context) {
         this.context = context.getApplicationContext();
@@ -35,41 +36,47 @@ public class RxDownloader {
         context.registerReceiver(downloadStatusReceiver, intentFilter);
     }
 
-    public Observable<String> downloadExternalPublicDir(@NonNull String url,
-                                                        @NonNull String filename,
-                                                        boolean showCompletedNotification) {
-        return downloadExternalPublicDir(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
-    }
-
-    public Observable<String> downloadExternalPublicDir(@NonNull String url,
-                                                        @NonNull String filename,
-                                                        @NonNull String mimeType,
-                                                        boolean showCompletedNotification) {
-        return download(getDefaultRequest(url, filename, null,
-                mimeType, true, showCompletedNotification));
-    }
-
-    public Observable<String> downloadExternalPublicDir(@NonNull String url,
-                                                        @NonNull String filename,
-                                                        @NonNull String destinationPath,
-                                                        @NonNull String mimeType,
-                                                        boolean showCompletedNotification) {
-        return download(getDefaultRequest(url, filename, destinationPath,
-                mimeType, true, showCompletedNotification));
-    }
-
-    public Observable<String> downloadExternalFilesDir(@NonNull String url,
-                                                       @NonNull String filename,
-                                                       @NonNull String destinationPath,
-                                                       @NonNull String mimeType,
-                                                       boolean showCompletedNotification) {
-        return download(getDefaultRequest(url, filename, destinationPath,
-                mimeType, false, showCompletedNotification));
-    }
-
-    @Nullable
+    @NonNull
     private DownloadManager getDownloadManager() {
-        return (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+        if (downloadManager != null) {
+            downloadManager = (DownloadManager) context.getApplicationContext().getSystemService(Context.DOWNLOAD_SERVICE);
+        }
+        if (downloadManager == null) {
+            throw new RuntimeException("Can't get DownloadManager from system service");
+        }
+        return downloadManager;
+    }
+
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       boolean showCompletedNotification) {
+        return download(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
+    }
+
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       @NonNull String mimeType,
+                                       boolean showCompletedNotification) {
+        return download(createRequest(url, filename, null,
+                mimeType, true, showCompletedNotification));
+    }
+
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       @NonNull String destinationPath,
+                                       @NonNull String mimeType,
+                                       boolean showCompletedNotification) {
+        return download(createRequest(url, filename, destinationPath,
+                mimeType, true, showCompletedNotification));
+    }
+
+    public Observable<String> downloadInFilesDir(@NonNull String url,
+                                                 @NonNull String filename,
+                                                 @NonNull String destinationPath,
+                                                 @NonNull String mimeType,
+                                                 boolean showCompletedNotification) {
+        return download(createRequest(url, filename, destinationPath,
+                mimeType, false, showCompletedNotification));
     }
 
     public Observable<String> download(DownloadManager.Request request) {
@@ -81,31 +88,38 @@ public class RxDownloader {
         return publishSubject;
     }
 
-    private DownloadManager.Request getDefaultRequest(@NonNull String url,
-                                                      @NonNull String filename,
-                                                      @Nullable String destinationPath,
-                                                      @NonNull String mimeType,
-                                                      boolean inPublicDir,
-                                                      boolean showCompletedNotification) {
+    private DownloadManager.Request createRequest(@NonNull String url,
+                                                  @NonNull String filename,
+                                                  @Nullable String destinationPath,
+                                                  @NonNull String mimeType,
+                                                  boolean inPublicDir,
+                                                  boolean showCompletedNotification) {
+
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setDescription(filename);
         request.setMimeType(mimeType);
-        destinationPath = destinationPath == null ?
-                Environment.DIRECTORY_DOWNLOADS : destinationPath;
+
+        if (destinationPath == null) {
+            destinationPath = Environment.DIRECTORY_DOWNLOADS;
+        }
+
+        File destinationFolder = inPublicDir
+                ? Environment.getExternalStoragePublicDirectory(destinationPath)
+                : new File(context.getFilesDir(), destinationPath);
+
+        createFolderIfNeeded(destinationFolder);
+        removeDuplicateFileIfExist(destinationFolder, filename);
+
         if (inPublicDir) {
-            File destinationFolder = Environment.getExternalStoragePublicDirectory(destinationPath);
-            createFolderIfNeeded(destinationFolder);
-            removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalPublicDir(destinationPath, filename);
         } else {
-            File destinationFolder = new File(context.getFilesDir(), destinationPath);
-            createFolderIfNeeded(destinationFolder);
-            removeDuplicateFileIfExist(destinationFolder, filename);
             request.setDestinationInExternalFilesDir(context, destinationPath, filename);
         }
-        request.setNotificationVisibility(showCompletedNotification ?
-                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED :
-                DownloadManager.Request.VISIBILITY_VISIBLE);
+
+        request.setNotificationVisibility(showCompletedNotification
+                ? DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                : DownloadManager.Request.VISIBILITY_VISIBLE);
+
         return request;
     }
 
@@ -140,8 +154,7 @@ public class RxDownloader {
             if (!cursor.moveToFirst()) {
                 cursor.close();
                 downloadManager.remove(id);
-                publishSubject.onError(
-                        new IllegalStateException("Cursor empty, this shouldn't happened"));
+                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happened"));
                 subjectMap.remove(id);
                 return;
             }

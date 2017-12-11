@@ -42,9 +42,11 @@ public class SampleAct extends FragmentActivity {
                 Toast.makeText(getApplication(), "Look at the notification!", Toast.LENGTH_SHORT).show();
 
                 RxDownloader rxDownloader = new RxDownloader(SampleAct.this);
-                rxDownloader
-                        .downloadExternalPublicDir("https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
-                                "nyancat photo", "image/jpg", true)
+                rxDownloader.download(
+                        "https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
+                        "nyancat photo",
+                        "image/jpg",
+                        true)
                         .subscribeOn(AndroidSchedulers.mainThread())
                         .subscribe(new Observer<String>() {
                             @Override
