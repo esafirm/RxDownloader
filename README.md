@@ -1,4 +1,5 @@
-## RxDownloadManager
+## Rx2DownloadManager
+This is fork of https://github.com/esafirm/RxDownloader repository with migration to RxJava2
 An Rx wrapper for Download Manager in Android
 
 ![](https://raw.githubusercontent.com/esafirm/RxDownloader/master/art/sample.gif)
@@ -30,7 +31,7 @@ allprojects {
 
 ```groovy
 dependencies {
-	  compile 'com.github.esafirm:RxDownloader:1.0.1'
+	  compile 'com.github.vladislavnikolaev:rxdownloader:1.0.8'
 }
 ```
 

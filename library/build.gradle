@@ -1,14 +1,14 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion '25.0.2'
+    compileSdkVersion 27
+    buildToolsVersion '26.0.2'
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 24
-        versionCode 1
-        versionName "1.0"
+        targetSdkVersion 27
+        versionCode 4
+        versionName "1.0.8"
     }
     buildTypes {
         release {
@@ -21,6 +21,5 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
     /* Rx */
-    compile 'io.reactivex:rxjava:1.2.9'
-    compile 'com.artemzin.rxjava:proguard-rules:1.2.9.0'
+    compile 'io.reactivex.rxjava2:rxjava:2.1.6'
 }
