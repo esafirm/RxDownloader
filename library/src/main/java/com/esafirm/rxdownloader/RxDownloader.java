@@ -38,7 +38,7 @@ public class RxDownloader {
 
     @NonNull
     private DownloadManager getDownloadManager() {
-        if (downloadManager != null) {
+        if (downloadManager == null) {
             downloadManager = (DownloadManager) context.getApplicationContext().getSystemService(Context.DOWNLOAD_SERVICE);
         }
         if (downloadManager == null) {
