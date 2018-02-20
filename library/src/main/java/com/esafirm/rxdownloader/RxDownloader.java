@@ -1,34 +1,23 @@
 package com.esafirm.rxdownloader;
 
 import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
-import android.util.Log;
 import android.util.Pair;
 
 import com.esafirm.rxdownloader.utils.LongSparseArray;
 
-import org.reactivestreams.Publisher;
-
 import java.io.File;
-import java.util.concurrent.Callable;
 
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
-import io.reactivex.FlowableEmitter;
-import io.reactivex.FlowableOnSubscribe;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.annotations.Nullable;
-import io.reactivex.flowables.ConnectableFlowable;
 import io.reactivex.functions.Function;
-import io.reactivex.processors.PublishProcessor;
+import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
@@ -38,18 +27,14 @@ import io.reactivex.subjects.PublishSubject;
 public class RxDownloader {
 
     private static final String DEFAULT_MIME_TYPE = "*/*";
-    private static final String TAG = RxDownloader.class.getSimpleName();
+    private static final int PROGRESS_INTERVAL_MILLIS = 500;
 
     private Context context;
-    //    private LongSparseArray<PublishSubject<String>> subjectMap = new LongSparseArray<>();
-    private LongSparseArray<PublishProcessor<Pair<Integer, String>>> progressSubjectMap = new LongSparseArray<>();
+    private LongSparseArray<PublishSubject<Pair<Integer, String>>> progressSubjectMap = new LongSparseArray<>();
     private DownloadManager downloadManager;
 
     public RxDownloader(@NonNull Context context) {
         this.context = context.getApplicationContext();
-//        DownloadStatusReceiver downloadStatusReceiver = new DownloadStatusReceiver();
-//        IntentFilter intentFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
-//        context.registerReceiver(downloadStatusReceiver, intentFilter);
     }
 
     @NonNull
@@ -63,112 +48,108 @@ public class RxDownloader {
         return downloadManager;
     }
 
-    public Flowable<String> download(@NonNull String url,
-                                     @NonNull String filename,
-                                     boolean showCompletedNotification) {
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       boolean showCompletedNotification) {
         return download(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
     }
 
-    public Flowable<String> download(@NonNull String url,
-                                     @NonNull String filename,
-                                     @NonNull String mimeType,
-                                     boolean showCompletedNotification) {
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       @NonNull String mimeType,
+                                       boolean showCompletedNotification) {
         return download(createRequest(url, filename, null,
                 mimeType, true, showCompletedNotification));
     }
 
-    public Flowable<String> download(@NonNull String url,
-                                     @NonNull String filename,
-                                     @NonNull String destinationPath,
-                                     @NonNull String mimeType,
-                                     boolean showCompletedNotification) {
+    public Observable<String> download(@NonNull String url,
+                                       @NonNull String filename,
+                                       @NonNull String destinationPath,
+                                       @NonNull String mimeType,
+                                       boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, true, showCompletedNotification));
     }
 
-    public Flowable<String> downloadInFilesDir(@NonNull String url,
-                                               @NonNull String filename,
-                                               @NonNull String destinationPath,
-                                               @NonNull String mimeType,
-                                               boolean showCompletedNotification) {
+    public Observable<String> downloadInFilesDir(@NonNull String url,
+                                                 @NonNull String filename,
+                                                 @NonNull String destinationPath,
+                                                 @NonNull String mimeType,
+                                                 boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, false, showCompletedNotification));
     }
 
-    public Flowable<String> download(DownloadManager.Request request) {
+    public Observable<String> download(DownloadManager.Request request) {
         long downloadId = getDownloadManager().enqueue(request);
 
-        PublishProcessor<Pair<Integer, String>> publishProcessor = PublishProcessor.create();
-        progressSubjectMap.put(downloadId, publishProcessor);
+        PublishSubject<Pair<Integer, String>> publishSubject = PublishSubject.create();
+        progressSubjectMap.put(downloadId, publishSubject);
 
-        return publishProcessor.flatMap(new Function<Pair<Integer, String>, Publisher<String>>() {
-            @Override
-            public Publisher<String> apply(Pair<Integer, String> pair) {
-                return Flowable.just(pair.second);
-            }
-        });
-    }
-
-    public Flowable<Pair<Integer, String>> downloadWithProgress(DownloadManager.Request request) {
-        final long downloadId = getDownloadManager().enqueue(request);
-
-        final PublishProcessor<Pair<Integer, String>> publishProcessor = PublishProcessor.create();
-        progressSubjectMap.put(downloadId, publishProcessor);
-
-//                        ;
-        Flowable<Pair<Integer, String>> flowable =
-                Flowable.defer(new Callable<Publisher<Pair<Integer, String>>>() {
+        return publishSubject
+                .flatMap(new Function<Pair<Integer, String>, Observable<String>>() {
                     @Override
-                    public Publisher<Pair<Integer, String>> call() {
-                        return
-                                Flowable.create(new FlowableOnSubscribe<Pair<Integer, String>>() {
-                                    @Override
-                                    public void subscribe(FlowableEmitter<Pair<Integer, String>> e) throws Exception {
-                                        Log.d(TAG, "subscribe: listening for progress");
-                                        DownloadManager.Query query = new DownloadManager.Query();
-                                        query.setFilterById(downloadId);
-                                        while (true) {
-                                            Cursor cursor = getDownloadManager().query(query);
-                                            cursor.moveToFirst();
-                                            int bytesDownloaded = cursor.getInt(cursor
-                                                    .getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
-                                            int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
-
-                                            int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
-                                            int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
-                                            String downloadedPackageUriString = cursor.getString(uriIndex);
-                                            cursor.close();
-                                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                                                e.onNext(Pair.create(100, downloadedPackageUriString));
-                                                e.onComplete();
-                                                break;
-                                            } else if (status == DownloadManager.STATUS_FAILED) {
-                                                e.onError(new RuntimeException("Download not complete"));
-                                                break;
-                                            }
-//                                    cursor.close();
-                                            final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
-                                            Log.d(TAG, "progress: " + progress + ", status: " + status);
-                                            Log.d(TAG, "downloaded: " + bytesDownloaded + "B, total: " + bytesTotal + "B status: " + status);
-                                            e.onNext(Pair.<Integer, String>create(progress, null));
-                                            Thread.sleep(500);
-                                        }
-                                    }
-                                }, BackpressureStrategy.LATEST)
-                                        /*.publish()
-                                        .autoConnect()*/;
+                    public Observable<String> apply(Pair<Integer, String> pair) {
+                        return Observable.just(pair.second);
+                    }
+                })
+                .filter(new Predicate<String>() {
+                    @Override
+                    public boolean test(String s) {
+                        return s != null;
                     }
                 });
-//        flowable.subscribe();
+    }
 
-//                .subscribeOn(Schedulers.io())
-//                .publish()
-//                .autoConnect();
+    public Observable<Pair<Integer, String>> downloadWithProgress(DownloadManager.Request request) {
+        final long downloadId = getDownloadManager().enqueue(request);
 
-        flowable/*.publish()
-                .autoConnect()*/
-                .subscribe(publishProcessor);
-        return publishProcessor;
+        final PublishSubject<Pair<Integer, String>> publishSubject = PublishSubject.create();
+        progressSubjectMap.put(downloadId, publishSubject);
+
+        Observable<Pair<Integer, String>> observable =
+                Observable.create(new ObservableOnSubscribe<Pair<Integer, String>>() {
+                    @Override
+                    public void subscribe(ObservableEmitter<Pair<Integer, String>> e) throws Exception {
+                        DownloadManager.Query query = new DownloadManager.Query();
+                        query.setFilterById(downloadId);
+                        while (true) {
+                            Cursor cursor = getDownloadManager().query(query);
+                            if (!cursor.moveToFirst()) {
+                                cursor.close();
+                                downloadManager.remove(downloadId);
+                                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happen"));
+                                progressSubjectMap.remove(downloadId);
+                                return;
+                            }
+                            int bytesDownloaded = cursor.getInt(cursor
+                                    .getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                            int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+
+                            int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                            int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                            String downloadedPackageUriString = cursor.getString(uriIndex);
+                            cursor.close();
+                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                e.onNext(Pair.create(100, downloadedPackageUriString));
+                                e.onComplete();
+                                progressSubjectMap.remove(downloadId);
+                                break;
+                            } else if (status == DownloadManager.STATUS_FAILED) {
+                                e.onError(new RuntimeException("Download not complete"));
+                                progressSubjectMap.remove(downloadId);
+                                break;
+                            }
+                            final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
+                            e.onNext(Pair.<Integer, String>create(progress, null));
+                            Thread.sleep(PROGRESS_INTERVAL_MILLIS);
+                        }
+                    }
+                });
+
+        observable.subscribeOn(Schedulers.newThread())
+                .subscribe(publishSubject);
+        return publishSubject;
     }
 
     private DownloadManager.Request createRequest(@NonNull String url,
@@ -219,53 +200,12 @@ public class RxDownloader {
         }
     }
 
-    public Flowable<Pair<Integer, String>> downloadWithProgress(@NonNull String url,
-                                                                @NonNull String filename,
-                                                                @NonNull String mimeType,
-                                                                boolean showCompletedNotification) {
+    public Observable<Pair<Integer, String>> downloadWithProgress(@NonNull String url,
+                                                                  @NonNull String filename,
+                                                                  @NonNull String mimeType,
+                                                                  boolean showCompletedNotification) {
         return downloadWithProgress(createRequest(url, filename, null,
                 mimeType, true, showCompletedNotification));
     }
 
-//    private class DownloadStatusReceiver extends BroadcastReceiver {
-//
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L);
-//            PublishProcessor<Pair<Integer, String>> publishSubject = progressSubjectMap.get(id);
-//
-//            if (publishSubject == null)
-//                return;
-//
-//            DownloadManager.Query query = new DownloadManager.Query();
-//            query.setFilterById(id);
-//            DownloadManager downloadManager = getDownloadManager();
-//            Cursor cursor = downloadManager.query(query);
-//
-//            if (!cursor.moveToFirst()) {
-//                cursor.close();
-//                downloadManager.remove(id);
-//                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happened"));
-//                progressSubjectMap.remove(id);
-//                return;
-//            }
-//
-//            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-//            if (DownloadManager.STATUS_SUCCESSFUL != cursor.getInt(statusIndex)) {
-//                cursor.close();
-//                downloadManager.remove(id);
-//                publishSubject.onError(new IllegalStateException("Download Failed"));
-//                progressSubjectMap.remove(id);
-//                return;
-//            }
-//
-//            int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
-//            String downloadedPackageUriString = cursor.getString(uriIndex);
-//            cursor.close();
-//
-//            publishSubject.onNext(downloadedPackageUriString);
-//            publishSubject.onComplete();
-//            subjectMap.remove(id);
-//        }
-//    }
 }
