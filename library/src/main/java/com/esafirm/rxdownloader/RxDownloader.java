@@ -14,6 +14,7 @@ import java.io.File;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.annotations.Nullable;
 import io.reactivex.functions.Function;
@@ -48,13 +49,13 @@ public class RxDownloader {
         return downloadManager;
     }
 
-    public Observable<String> download(@NonNull String url,
-                                       @NonNull String filename,
-                                       boolean showCompletedNotification) {
+    public Single<String> download(@NonNull String url,
+                                   @NonNull String filename,
+                                   boolean showCompletedNotification) {
         return download(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
     }
 
-    public Observable<String> download(@NonNull String url,
+    public Single<String> download(@NonNull String url,
                                        @NonNull String filename,
                                        @NonNull String mimeType,
                                        boolean showCompletedNotification) {
@@ -62,7 +63,7 @@ public class RxDownloader {
                 mimeType, true, showCompletedNotification));
     }
 
-    public Observable<String> download(@NonNull String url,
+    public Single<String> download(@NonNull String url,
                                        @NonNull String filename,
                                        @NonNull String destinationPath,
                                        @NonNull String mimeType,
@@ -71,7 +72,7 @@ public class RxDownloader {
                 mimeType, true, showCompletedNotification));
     }
 
-    public Observable<String> downloadInFilesDir(@NonNull String url,
+    public Single<String> downloadInFilesDir(@NonNull String url,
                                                  @NonNull String filename,
                                                  @NonNull String destinationPath,
                                                  @NonNull String mimeType,
@@ -80,25 +81,26 @@ public class RxDownloader {
                 mimeType, false, showCompletedNotification));
     }
 
-    public Observable<String> download(DownloadManager.Request request) {
+    public Single<String> download(DownloadManager.Request request) {
         long downloadId = getDownloadManager().enqueue(request);
 
         PublishSubject<Pair<Integer, String>> publishSubject = PublishSubject.create();
         progressSubjectMap.put(downloadId, publishSubject);
 
         return publishSubject
-                .flatMap(new Function<Pair<Integer, String>, Observable<String>>() {
+                .filter(new Predicate<Pair<Integer, String>>() {
                     @Override
-                    public Observable<String> apply(Pair<Integer, String> pair) {
-                        return Observable.just(pair.second);
+                    public boolean test(Pair<Integer, String> s) {
+                        return s.second != null;
                     }
                 })
-                .filter(new Predicate<String>() {
+                .map(new Function<Pair<Integer,String>, String>() {
                     @Override
-                    public boolean test(String s) {
-                        return s != null;
+                    public String apply(Pair<Integer, String> pair) throws Exception {
+                        return pair.second;
                     }
-                });
+                })
+                .firstOrError();
     }
 
     public Observable<Pair<Integer, String>> downloadWithProgress(DownloadManager.Request request) {
