@@ -8,11 +8,11 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.PermissionChecker;
-import android.util.Pair;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.esafirm.rxdownloader.DownloadState;
 import com.esafirm.rxdownloader.RxDownloader;
 
 import java.util.Locale;
@@ -49,7 +49,7 @@ public class SampleAct extends FragmentActivity {
                         true)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<Pair<Integer,String>>() {
+                        .subscribe(new Observer<DownloadState>() {
 
                             @Override
                             public void onSubscribe(Disposable d) {
@@ -57,10 +57,10 @@ public class SampleAct extends FragmentActivity {
                             }
 
                             @Override
-                            public void onNext(Pair<Integer, String> pair) {
-                                tv_progress.setText(String.format(Locale.US, "%d%%", pair.first));
-                                if (pair.second != null) {
-                                    Toast.makeText(getApplication(), "Downloaded to " + pair.second, Toast.LENGTH_SHORT).show();
+                            public void onNext(DownloadState state) {
+                                tv_progress.setText(String.format(Locale.US, "%d%%", state.progress));
+                                if (state.path != null) {
+                                    Toast.makeText(getApplication(), "Downloaded to " + state.path, Toast.LENGTH_SHORT).show();
                                 }
                             }
 
