@@ -52,33 +52,33 @@ public class RxDownloader {
     }
 
     public Single<String> download(@NonNull String url,
-                                             @NonNull String filename,
-                                             boolean showCompletedNotification) {
+                                   @NonNull String filename,
+                                   boolean showCompletedNotification) {
         return download(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
     }
 
     public Single<String> download(@NonNull String url,
-                                             @NonNull String filename,
-                                             @NonNull String mimeType,
-                                             boolean showCompletedNotification) {
+                                   @NonNull String filename,
+                                   @NonNull String mimeType,
+                                   boolean showCompletedNotification) {
         return download(createRequest(url, filename, null,
                 mimeType, true, showCompletedNotification));
     }
 
     public Single<String> download(@NonNull String url,
-                                             @NonNull String filename,
-                                             @NonNull String destinationPath,
-                                             @NonNull String mimeType,
-                                             boolean showCompletedNotification) {
+                                   @NonNull String filename,
+                                   @NonNull String destinationPath,
+                                   @NonNull String mimeType,
+                                   boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, true, showCompletedNotification));
     }
 
     public Single<String> downloadInFilesDir(@NonNull String url,
-                                                       @NonNull String filename,
-                                                       @NonNull String destinationPath,
-                                                       @NonNull String mimeType,
-                                                       boolean showCompletedNotification) {
+                                             @NonNull String filename,
+                                             @NonNull String destinationPath,
+                                             @NonNull String mimeType,
+                                             boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, false, showCompletedNotification));
     }
