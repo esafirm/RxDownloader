@@ -5,14 +5,17 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
+import android.text.TextUtils;
 
 import com.esafirm.rxdownloader.utils.LongSparseArray;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
 import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.annotations.Nullable;
@@ -109,44 +112,44 @@ public class RxDownloader {
         progressSubjectMap.put(downloadId, publishSubject);
 
         Observable<DownloadState> observable =
-                Observable.create(new ObservableOnSubscribe<DownloadState>() {
-                    @Override
-                    public void subscribe(ObservableEmitter<DownloadState> e) throws Exception {
-                        DownloadManager.Query query = new DownloadManager.Query();
-                        query.setFilterById(downloadId);
-                        while (true) {
-                            Cursor cursor = getDownloadManager().query(query);
-                            if (!cursor.moveToFirst()) {
-                                cursor.close();
-                                downloadManager.remove(downloadId);
-                                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happen"));
-                                progressSubjectMap.remove(downloadId);
-                                return;
-                            }
-                            int bytesDownloaded = cursor.getInt(cursor
-                                    .getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
-                            int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+                Observable.interval(PROGRESS_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
+                        .flatMap(new Function<Long, ObservableSource<DownloadState>>() {
+                            @Override
+                            public ObservableSource<DownloadState> apply(Long aLong) throws Exception {
+                                DownloadManager.Query query = new DownloadManager.Query();
+                                query.setFilterById(downloadId);
+                                Cursor cursor = getDownloadManager().query(query);
+                                if (!cursor.moveToFirst()) {
+                                    cursor.close();
+                                    downloadManager.remove(downloadId);
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.error(new IllegalStateException("Cursor empty, this shouldn't happen"));
+                                }
+                                int bytesDownloaded = cursor.getInt(cursor
+                                        .getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                                int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
 
-                            int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
-                            int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
-                            String downloadedPackageUriString = cursor.getString(uriIndex);
-                            cursor.close();
-                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                                e.onNext(DownloadState.create(100, downloadedPackageUriString));
-                                e.onComplete();
-                                progressSubjectMap.remove(downloadId);
-                                break;
-                            } else if (status == DownloadManager.STATUS_FAILED) {
-                                e.onError(new RuntimeException("Download not complete"));
-                                progressSubjectMap.remove(downloadId);
-                                break;
+                                int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                                int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                                String downloadedPackageUriString = cursor.getString(uriIndex);
+                                cursor.close();
+                                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.just(DownloadState.create(100, downloadedPackageUriString));
+                                } else if (status == DownloadManager.STATUS_FAILED) {
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.error(new RuntimeException("Download not complete"));
+                                }
+                                final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
+                                return Observable.just(DownloadState.create(progress, null));
                             }
-                            final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
-                            e.onNext(DownloadState.create(progress, null));
-                            Thread.sleep(PROGRESS_INTERVAL_MILLIS);
-                        }
-                    }
-                });
+                        })
+                        .takeUntil(new Predicate<DownloadState>() {
+                            @Override
+                            public boolean test(DownloadState downloadState) throws Exception {
+                                return !TextUtils.isEmpty(downloadState.path);
+                            }
+                        });
 
         observable.subscribeOn(Schedulers.newThread())
                 .subscribe(publishSubject);
