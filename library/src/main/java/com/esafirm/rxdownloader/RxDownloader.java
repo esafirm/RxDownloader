@@ -13,8 +13,6 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.ObservableSource;
 import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
@@ -84,12 +82,7 @@ public class RxDownloader {
     }
 
     public Single<String> download(DownloadManager.Request request) {
-        long downloadId = getDownloadManager().enqueue(request);
-
-        PublishSubject<DownloadState> publishSubject = PublishSubject.create();
-        progressSubjectMap.put(downloadId, publishSubject);
-
-        return publishSubject
+        return downloadWithProgress(request)
                 .filter(new Predicate<DownloadState>() {
                     @Override
                     public boolean test(DownloadState s) {
