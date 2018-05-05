@@ -1,7 +1,10 @@
 package com.esafirm.rxdownloader;
 
 import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
@@ -36,6 +39,10 @@ public class RxDownloader {
 
     public RxDownloader(@NonNull Context context) {
         this.context = context.getApplicationContext();
+
+        DownloadStatusReceiver downloadStatusReceiver = new DownloadStatusReceiver();
+        IntentFilter intentFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        context.registerReceiver(downloadStatusReceiver, intentFilter);
     }
 
     @NonNull
@@ -203,6 +210,48 @@ public class RxDownloader {
                                                           boolean showCompletedNotification) {
         return downloadWithProgress(createRequest(url, filename, null,
                 mimeType, true, showCompletedNotification));
+    }
+
+    private class DownloadStatusReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L);
+            PublishSubject<DownloadState> publishSubject = progressSubjectMap.get(id);
+
+            if (publishSubject == null)
+                return;
+
+            DownloadManager.Query query = new DownloadManager.Query();
+            query.setFilterById(id);
+            DownloadManager downloadManager = getDownloadManager();
+            Cursor cursor = downloadManager.query(query);
+
+            if (!cursor.moveToFirst()) {
+                cursor.close();
+                downloadManager.remove(id);
+                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happen."));
+                progressSubjectMap.remove(id);
+                return;
+            }
+
+            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            if (DownloadManager.STATUS_SUCCESSFUL != cursor.getInt(statusIndex)) {
+                cursor.close();
+                downloadManager.remove(id);
+                publishSubject.onError(new IllegalStateException("Download Failed"));
+                progressSubjectMap.remove(id);
+                return;
+            }
+
+            int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+            String downloadedPackageUriString = cursor.getString(uriIndex);
+            cursor.close();
+
+            publishSubject.onNext(new DownloadState(100, downloadedPackageUriString));
+            publishSubject.onComplete();
+            progressSubjectMap.remove(id);
+        }
     }
 
 }
