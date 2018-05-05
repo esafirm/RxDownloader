@@ -5,9 +5,9 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.PermissionChecker;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,14 +25,14 @@ import io.reactivex.schedulers.Schedulers;
 /**
  * Created by esa on 11/11/15, with awesomeness
  */
-public class SampleAct extends FragmentActivity {
+public class SampleProgressActivity extends AppCompatActivity {
 
     private TextView tv_progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
+        setContentView(R.layout.download_progress);
         checkPermission();
     }
 
@@ -41,7 +41,7 @@ public class SampleAct extends FragmentActivity {
         findViewById(R.id.btn_download).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                RxDownloader rxDownloader = new RxDownloader(SampleAct.this);
+                RxDownloader rxDownloader = new RxDownloader(SampleProgressActivity.this);
                 rxDownloader.downloadWithProgress(
                         "http://ipv4.download.thinkbroadband.com/20MB.zip",
                         "20MB.zip",
@@ -72,6 +72,7 @@ public class SampleAct extends FragmentActivity {
                             @Override
                             public void onComplete() {
                                 // do nothing
+                                tv_progress.setText("Download finished");
                             }
                         });
             }
