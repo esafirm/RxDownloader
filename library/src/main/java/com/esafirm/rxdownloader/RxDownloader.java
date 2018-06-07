@@ -135,13 +135,13 @@ public class RxDownloader {
                                 cursor.close();
                                 if (status == DownloadManager.STATUS_SUCCESSFUL) {
                                     progressSubjectMap.remove(downloadId);
-                                    return Observable.just(DownloadState.create(100, downloadedPackageUriString));
+                                    return Observable.just(new DownloadState(100, downloadedPackageUriString));
                                 } else if (status == DownloadManager.STATUS_FAILED) {
                                     progressSubjectMap.remove(downloadId);
                                     return Observable.error(new RuntimeException("Download not complete"));
                                 }
                                 final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
-                                return Observable.just(DownloadState.create(progress, null));
+                                return Observable.just(new DownloadState(progress, null));
                             }
                         })
                         .takeUntil(new Predicate<DownloadState>() {
