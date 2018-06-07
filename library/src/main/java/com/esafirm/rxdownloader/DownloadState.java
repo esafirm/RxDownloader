@@ -3,7 +3,7 @@ package com.esafirm.rxdownloader;
 /**
  * Represents download state
  */
-public final class DownloadState {
+public class DownloadState {
     public final int progress;
     public final String path;
 
