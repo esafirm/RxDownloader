@@ -16,4 +16,7 @@ public class DownloadState {
         this.path = path;
     }
 
+    public boolean isComplete() {
+        return path != null && path.length() > 0;
+    }
 }

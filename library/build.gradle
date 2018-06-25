@@ -22,4 +22,5 @@ dependencies {
 
     /* Rx */
     implementation 'io.reactivex.rxjava2:rxjava:2.1.6'
+    testImplementation 'junit:junit:4.12'
 }
