@@ -8,14 +8,21 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
+import android.text.TextUtils;
 
 import com.esafirm.rxdownloader.utils.LongSparseArray;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.annotations.Nullable;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 /**
@@ -24,13 +31,15 @@ import io.reactivex.subjects.PublishSubject;
 public class RxDownloader {
 
     private static final String DEFAULT_MIME_TYPE = "*/*";
+    private static final int PROGRESS_INTERVAL_MILLIS = 500;
 
     private Context context;
-    private LongSparseArray<PublishSubject<String>> subjectMap = new LongSparseArray<>();
+    private LongSparseArray<PublishSubject<DownloadState>> progressSubjectMap = new LongSparseArray<>();
     private DownloadManager downloadManager;
 
     public RxDownloader(@NonNull Context context) {
         this.context = context.getApplicationContext();
+
         DownloadStatusReceiver downloadStatusReceiver = new DownloadStatusReceiver();
         IntentFilter intentFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
         context.registerReceiver(downloadStatusReceiver, intentFilter);
@@ -47,44 +56,103 @@ public class RxDownloader {
         return downloadManager;
     }
 
-    public Observable<String> download(@NonNull String url,
-                                       @NonNull String filename,
-                                       boolean showCompletedNotification) {
+    public Single<String> download(@NonNull String url,
+                                   @NonNull String filename,
+                                   boolean showCompletedNotification) {
         return download(url, filename, DEFAULT_MIME_TYPE, showCompletedNotification);
     }
 
-    public Observable<String> download(@NonNull String url,
-                                       @NonNull String filename,
-                                       @NonNull String mimeType,
-                                       boolean showCompletedNotification) {
+    public Single<String> download(@NonNull String url,
+                                   @NonNull String filename,
+                                   @NonNull String mimeType,
+                                   boolean showCompletedNotification) {
         return download(createRequest(url, filename, null,
                 mimeType, true, showCompletedNotification));
     }
 
-    public Observable<String> download(@NonNull String url,
-                                       @NonNull String filename,
-                                       @NonNull String destinationPath,
-                                       @NonNull String mimeType,
-                                       boolean showCompletedNotification) {
+    public Single<String> download(@NonNull String url,
+                                   @NonNull String filename,
+                                   @NonNull String destinationPath,
+                                   @NonNull String mimeType,
+                                   boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, true, showCompletedNotification));
     }
 
-    public Observable<String> downloadInFilesDir(@NonNull String url,
-                                                 @NonNull String filename,
-                                                 @NonNull String destinationPath,
-                                                 @NonNull String mimeType,
-                                                 boolean showCompletedNotification) {
+    public Single<String> downloadInFilesDir(@NonNull String url,
+                                             @NonNull String filename,
+                                             @NonNull String destinationPath,
+                                             @NonNull String mimeType,
+                                             boolean showCompletedNotification) {
         return download(createRequest(url, filename, destinationPath,
                 mimeType, false, showCompletedNotification));
     }
 
-    public Observable<String> download(DownloadManager.Request request) {
-        long downloadId = getDownloadManager().enqueue(request);
+    public Single<String> download(DownloadManager.Request request) {
+        return downloadWithProgress(request)
+                .filter(new Predicate<DownloadState>() {
+                    @Override
+                    public boolean test(DownloadState s) {
+                        return s.path != null;
+                    }
+                })
+                .map(new Function<DownloadState, String>() {
+                    @Override
+                    public String apply(DownloadState progressState) {
+                        return progressState.path;
+                    }
+                })
+                .firstOrError();
+    }
 
-        PublishSubject<String> publishSubject = PublishSubject.create();
-        subjectMap.put(downloadId, publishSubject);
+    public Observable<DownloadState> downloadWithProgress(DownloadManager.Request request) {
+        final long downloadId = getDownloadManager().enqueue(request);
 
+        final PublishSubject<DownloadState> publishSubject = PublishSubject.create();
+        progressSubjectMap.put(downloadId, publishSubject);
+
+        Observable<DownloadState> observable =
+                Observable.interval(PROGRESS_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
+                        .flatMap(new Function<Long, ObservableSource<DownloadState>>() {
+                            @Override
+                            public ObservableSource<DownloadState> apply(Long aLong) throws Exception {
+                                DownloadManager.Query query = new DownloadManager.Query();
+                                query.setFilterById(downloadId);
+                                Cursor cursor = getDownloadManager().query(query);
+                                if (!cursor.moveToFirst()) {
+                                    cursor.close();
+                                    downloadManager.remove(downloadId);
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.error(new IllegalStateException("Cursor empty, this shouldn't happen"));
+                                }
+                                int bytesDownloaded = cursor.getInt(cursor
+                                        .getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                                int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+
+                                int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                                int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                                String downloadedPackageUriString = cursor.getString(uriIndex);
+                                cursor.close();
+                                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.just(new DownloadState(100, downloadedPackageUriString));
+                                } else if (status == DownloadManager.STATUS_FAILED) {
+                                    progressSubjectMap.remove(downloadId);
+                                    return Observable.error(new RuntimeException("Download not complete"));
+                                }
+                                final int progress = (int) ((bytesDownloaded * 1f) / bytesTotal * 100);
+                                return Observable.just(new DownloadState(progress, null));
+                            }
+                        })
+                        .takeUntil(new Predicate<DownloadState>() {
+                            @Override
+                            public boolean test(DownloadState downloadState) throws Exception {
+                                return !TextUtils.isEmpty(downloadState.path);
+                            }
+                        });
+
+        observable.subscribeOn(Schedulers.newThread())
+                .subscribe(publishSubject);
         return publishSubject;
     }
 
@@ -136,12 +204,20 @@ public class RxDownloader {
         }
     }
 
+    public Observable<DownloadState> downloadWithProgress(@NonNull String url,
+                                                          @NonNull String filename,
+                                                          @NonNull String mimeType,
+                                                          boolean showCompletedNotification) {
+        return downloadWithProgress(createRequest(url, filename, null,
+                mimeType, true, showCompletedNotification));
+    }
+
     private class DownloadStatusReceiver extends BroadcastReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
             long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L);
-            PublishSubject<String> publishSubject = subjectMap.get(id);
+            PublishSubject<DownloadState> publishSubject = progressSubjectMap.get(id);
 
             if (publishSubject == null)
                 return;
@@ -154,8 +230,8 @@ public class RxDownloader {
             if (!cursor.moveToFirst()) {
                 cursor.close();
                 downloadManager.remove(id);
-                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happened"));
-                subjectMap.remove(id);
+                publishSubject.onError(new IllegalStateException("Cursor empty, this shouldn't happen."));
+                progressSubjectMap.remove(id);
                 return;
             }
 
@@ -164,7 +240,7 @@ public class RxDownloader {
                 cursor.close();
                 downloadManager.remove(id);
                 publishSubject.onError(new IllegalStateException("Download Failed"));
-                subjectMap.remove(id);
+                progressSubjectMap.remove(id);
                 return;
             }
 
@@ -172,9 +248,10 @@ public class RxDownloader {
             String downloadedPackageUriString = cursor.getString(uriIndex);
             cursor.close();
 
-            publishSubject.onNext(downloadedPackageUriString);
+            publishSubject.onNext(new DownloadState(100, downloadedPackageUriString));
             publishSubject.onComplete();
-            subjectMap.remove(id);
+            progressSubjectMap.remove(id);
         }
     }
+
 }

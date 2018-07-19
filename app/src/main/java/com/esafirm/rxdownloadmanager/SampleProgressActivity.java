@@ -3,69 +3,65 @@ package com.esafirm.rxdownloadmanager;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.PermissionChecker;
-import android.util.Log;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
+import com.esafirm.rxdownloader.DownloadState;
 import com.esafirm.rxdownloader.RxDownloader;
+
+import java.util.Locale;
 
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Created by esa on 11/11/15, with awesomeness
  */
-public class SampleAct extends FragmentActivity {
+public class SampleProgressActivity extends AppCompatActivity {
+
+    private TextView tv_progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
+        setContentView(R.layout.download_progress);
         checkPermission();
     }
 
     private void startSample() {
+        tv_progress = findViewById(R.id.progress);
         findViewById(R.id.btn_download).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(getApplication(), "Look at the notification!", Toast.LENGTH_SHORT).show();
-
-                RxDownloader rxDownloader = new RxDownloader(SampleAct.this);
-                rxDownloader.download(
-                        "https://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG",
-                        "nyancat photo",
-                        "image/jpg",
+                RxDownloader rxDownloader = new RxDownloader(SampleProgressActivity.this);
+                rxDownloader.downloadWithProgress(
+                        "http://ipv4.download.thinkbroadband.com/20MB.zip",
+                        "20MB.zip",
+                        "application/zip",
                         true)
-                        .subscribeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<String>() {
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(new Observer<DownloadState>() {
+
                             @Override
                             public void onSubscribe(Disposable d) {
-
+                                // do nothing
                             }
 
                             @Override
-                            public void onNext(String filePath) {
-                                Toast.makeText(getApplication(), "Downloaded to " + filePath, Toast.LENGTH_SHORT).show();
-
-                                ImageView imageView = new ImageView(SampleAct.this);
-                                imageView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.WRAP_CONTENT));
-                                ((ViewGroup) findViewById(R.id.container)).addView(imageView);
-
-                                Glide.with(SampleAct.this)
-                                        .load(filePath)
-                                        .into(imageView);
+                            public void onNext(DownloadState state) {
+                                tv_progress.setText(String.format(Locale.US, "%d%%", state.progress));
+                                if (state.path != null) {
+                                    Toast.makeText(getApplication(), "Downloaded to " + state.path, Toast.LENGTH_SHORT).show();
+                                }
                             }
 
                             @Override
@@ -75,7 +71,8 @@ public class SampleAct extends FragmentActivity {
 
                             @Override
                             public void onComplete() {
-                                Log.d("Sample", "Is in main thread? " + (Looper.getMainLooper() == Looper.myLooper()));
+                                // do nothing
+                                tv_progress.setText("Download finished");
                             }
                         });
             }
